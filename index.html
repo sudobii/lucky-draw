@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>幸运大抽奖</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --red: #e74c3c;
+      --dark-red: #c0392b;
+      --gold: #f1c40f;
+      --light-gold: #f9e79f;
+      --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 30px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, var(--red), var(--gold), var(--red));
+    }
+
+    h1 {
+      font-size: 32px;
+      color: var(--dark-red);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+
+    /* Prize Wheel */
+    .wheel-container {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 0 auto 30px;
+    }
+
+    .wheel {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 8px solid var(--gold);
+      position: relative;
+      transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .wheel-segment {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      left: 50%;
+      top: 50%;
+      transform-origin: 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+      clip-path: polygon(0 0, 100% 0, 100% 100%);
+    }
+
+    .wheel-segment span {
+      position: absolute;
+      left: 30px;
+      top: 20px;
+      transform: rotate(45deg);
+      white-space: nowrap;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+    }
+
+    .wheel-pointer {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-top: 30px solid var(--red);
+      z-index: 10;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .wheel-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      background: var(--gold);
+      border-radius: 50%;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Spin Button */
+    .spin-btn {
+      background: linear-gradient(135deg, var(--red), var(--dark-red));
+      color: white;
+      border: none;
+      padding: 16px 50px;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-bottom: 20px;
+    }
+
+    .spin-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.5);
+    }
+
+    .spin-btn:active {
+      transform: scale(0.98);
+    }
+
+    .spin-btn:disabled {
+      background: #ccc;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Result Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 30px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      animation: modalPop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-icon {
+      font-size: 60px;
+      margin-bottom: 15px;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      color: var(--dark-red);
+      margin-bottom: 10px;
+    }
+
+    .modal-prize {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    .modal-btn {
+      background: linear-gradient(135deg, var(--red), var(--dark-red));
+      color: white;
+      border: none;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    /* Confetti */
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      z-index: 99;
+      animation: confettiFall 3s linear forwards;
+    }
+
+    @keyframes confettiFall {
+      to {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
+    /* Already drawn state */
+    .already-drawn {
+      display: none;
+      padding: 30px 20px;
+    }
+
+    .already-drawn.active {
+      display: block;
+    }
+
+    .wheel-section {
+      display: block;
+    }
+
+    .wheel-section.hidden {
+      display: none;
+    }
+
+    .prize-list {
+      margin-top: 25px;
+      text-align: left;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+
+    .prize-list h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .prize-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px dashed #eee;
+    }
+
+    .prize-item:last-child {
+      border-bottom: none;
+    }
+
+    .prize-chance {
+      color: var(--red);
+      font-weight: bold;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎁 幸运大抽奖</h1>
+    <p class="subtitle">扫码即可参与，100%中奖！</p>
+
+    <!-- Wheel Section -->
+    <div class="wheel-section" id="wheelSection">
+      <div class="wheel-container">
+        <div class="wheel-pointer"></div>
+        <div class="wheel" id="wheel"></div>
+        <div class="wheel-center">🎯</div>
+      </div>
+
+      <button class="spin-btn" id="spinBtn">立即抽奖</button>
+
+      <div class="prize-list">
+        <h3>🏆 奖品设置</h3>
+        <div class="prize-item"><span>特等奖 - iPhone 16 Pro</span><span class="prize-chance">1%</span></div>
+        <div class="prize-item"><span>一等奖 - iPad Air</span><span class="prize-chance">3%</span></div>
+        <div class="prize-item"><span>二等奖 - AirPods Pro</span><span class="prize-chance">6%</span></div>
+        <div class="prize-item"><span>三等奖 - 小米手环</span><span class="prize-chance">10%</span></div>
+        <div class="prize-item"><span>四等奖 - 50元红包</span><span class="prize-chance">15%</span></div>
+        <div class="prize-item"><span>五等奖 - 10元红包</span><span class="prize-chance">25%</span></div>
+        <div class="prize-item"><span>幸运奖 - 谢谢参与</span><span class="prize-chance">40%</span></div>
+      </div>
+    </div>
+
+    <!-- Already Drawn Section -->
+    <div class="already-drawn" id="alreadyDrawn">
+      <div style="font-size: 60px; margin-bottom: 15px;">🎊</div>
+      <h2 style="color: var(--dark-red); margin-bottom: 10px;">您已参与过抽奖</h2>
+      <p style="color: #888; font-size: 14px;">每人仅限一次机会，感谢您的参与！</p>
+      <div id="myPrize" style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 12px;">
+        <div style="font-size: 13px; color: #856404;">您抽中的奖品</div>
+        <div style="font-size: 22px; font-weight: bold; color: var(--red);" id="myPrizeText"></div>
+      </div>
+    </div>
+
+    <div class="footer">活动最终解释权归主办方所有</div>
+  </div>
+
+  <!-- Result Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-icon" id="modalIcon">🎉</div>
+      <div class="modal-title" id="modalTitle">恭喜您！</div>
+      <div class="modal-prize" id="modalPrize"></div>
+      <div class="modal-desc" id="modalDesc">您的运气真好，快去找工作人员领奖吧！</div>
+      <button class="modal-btn" onclick="closeModal()">开心收下</button>
+    </div>
+  </div>
+
+  <script>
+    // Prize configuration
+    const prizes = [
+      { name: 'iPhone 16 Pro', level: '特等奖', probability: 1, color: '#e74c3c', icon: '📱' },
+      { name: 'iPad Air', level: '一等奖', probability: 3, color: '#e67e22', icon: '📲' },
+      { name: 'AirPods Pro', level: '二等奖', probability: 6, color: '#f1c40f', icon: '🎧' },
+      { name: '小米手环', level: '三等奖', probability: 10, color: '#2ecc71', icon: '⌚' },
+      { name: '50元红包', level: '四等奖', probability: 15, color: '#3498db', icon: '🧧' },
+      { name: '10元红包', level: '五等奖', icon: '🧧', probability: 25, color: '#9b59b6' },
+      { name: '谢谢参与', level: '幸运奖', probability: 40, color: '#95a5a6', icon: '😅' }
+    ];
+
+    const SEGMENT_ANGLE = 360 / prizes.length;
+    let currentRotation = 0;
+    let isSpinning = false;
+
+    // Initialize wheel
+    function initWheel() {
+      const wheel = document.getElementById('wheel');
+      prizes.forEach((prize, index) => {
+        const segment = document.createElement('div');
+        segment.className = 'wheel-segment';
+        const rotation = index * SEGMENT_ANGLE - 90 + SEGMENT_ANGLE / 2;
+        segment.style.transform = `rotate(${rotation}deg)`;
+        segment.style.background = `conic-gradient(from ${index * SEGMENT_ANGLE}deg, ${prize.color} 0deg, ${prize.color} ${SEGMENT_ANGLE}deg)`;
+        
+        const colors = ['#fff5f5', '#fff9f0', '#fffff0', '#f0fff0', '#f0f8ff', '#f8f0ff', '#f5f5f5'];
+        segment.style.background = colors[index];
+        
+        const text = document.createElement('span');
+        text.textContent = prize.level + '\n' + prize.name;
+        text.style.transform = `rotate(${90 - SEGMENT_ANGLE / 2}deg)`;
+        text.style.textAlign = 'center';
+        text.style.lineHeight = '1.4';
+        segment.appendChild(text);
+        wheel.appendChild(segment);
+      });
+    }
+
+    // Weighted random selection
+    function drawPrize() {
+      const rand = Math.random() * 100;
+      let cumulative = 0;
+      for (let i = 0; i < prizes.length; i++) {
+        cumulative += prizes[i].probability;
+        if (rand <= cumulative) return i;
+      }
+      return prizes.length - 1;
+    }
+
+    // Spin the wheel
+    function spin() {
+      if (isSpinning) return;
+      
+      // Check if already drawn
+      if (localStorage.getItem('hasDrawn')) {
+        showAlreadyDrawn();
+        return;
+      }
+
+      isSpinning = true;
+      document.getElementById('spinBtn').disabled = true;
+
+      const resultIndex = drawPrize();
+      const extraSpins = 5 + Math.floor(Math.random() * 3);
+      const targetAngle = resultIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
+      const totalRotation = currentRotation + (360 * extraSpins) + (targetAngle - (currentRotation % 360));
+
+      const wheel = document.getElementById('wheel');
+      wheel.style.transform = `rotate(${totalRotation}deg)`;
+      currentRotation = totalRotation;
+
+      setTimeout(() => {
+        isSpinning = false;
+        showResult(resultIndex);
+        localStorage.setItem('hasDrawn', 'true');
+        localStorage.setItem('myPrize', JSON.stringify(prizes[resultIndex]));
+        localStorage.setItem('drawTime', new Date().toLocaleString());
+      }, 4000);
+    }
+
+    // Show result
+    function showResult(index) {
+      const prize = prizes[index];
+      document.getElementById('modalPrize').textContent = prize.icon + ' ' + prize.name;
+      document.getElementById('modalTitle').textContent = prize.name === '谢谢参与' ? '别灰心！' : '🎊 恭喜您！';
+      document.getElementById('modalIcon').textContent = prize.icon;
+      document.getElementById('modalDesc').textContent = prize.name === '谢谢参与' 
+        ? '感谢参与，下次好运！' 
+        : '请凭此页面联系工作人员领取奖品！';
+      document.getElementById('modalOverlay').classList.add('active');
+
+      if (prize.name !== '谢谢参与') {
+        createConfetti();
+      }
+    }
+
+    // Show already drawn
+    function showAlreadyDrawn() {
+      const saved = localStorage.getItem('myPrize');
+      if (saved) {
+        const prize = JSON.parse(saved);
+        document.getElementById('myPrizeText').textContent = prize.icon + ' ' + prize.name;
+      }
+      document.getElementById('wheelSection').classList.add('hidden');
+      document.getElementById('alreadyDrawn').classList.add('active');
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('active');
+      showAlreadyDrawn();
+    }
+
+    // Confetti effect
+    function createConfetti() {
+      const colors = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#e67e22'];
+      for (let i = 0; i < 60; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + 'vw';
+          confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+          confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+          document.body.appendChild(confetti);
+          setTimeout(() => confetti.remove(), 4000);
+        }, i * 30);
+      }
+    }
+
+    // Check on load
+    document.addEventListener('DOMContentLoaded', () => {
+      initWheel();
+      document.getElementById('spinBtn').addEventListener('click', spin);
+      
+      if (localStorage.getItem('hasDrawn')) {
+        showAlreadyDrawn();
+      }
+    });
+  </script>
+</body>
+</html>
